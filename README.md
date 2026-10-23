@@ -1,111 +1,69 @@
-# VELOOP Analytics Dashboard
+# VELOOP Analytics Portal
 
-A web-based analytics dashboard built with Python and Flask to explore a **simulated VELOOP user-profile dataset**. The project demonstrates data exploration, data-quality checks, KPI documentation, and analytical reporting in a simple web interface.
-
-> **Data disclaimer:** The dataset is fictional/simulated and is provided for analytical demonstration only. It does not represent actual VELOOP users or business performance. Do not present any figures as real company statistics.
+A Flask-based analytics dashboard for exploring the supplied **simulated** VELOOP user-profile dataset. This version adds database-backed user registration, login, and logout.
 
 ## Features
+- Account registration with unique username and email
+- Login using username or email
+- Passwords stored as secure password hashes, never as plain text
+- CSRF protection for forms and POST actions
+- Login-protected dashboard, analytics pages, API summary, uploads, and CSV export
+- Per-account CSV/Excel uploads for analysis (uploads are stored on the app filesystem; see persistence note below)
+- Overview dashboard, charts, searchable user explorer, data-quality checks, KPI catalogue, insights, and action backlog
+- Health endpoint at `/health`
 
-- Dashboard overview with profile summaries and charts
-- Searchable user explorer and CSV export
-- Data-quality checks for missing values and duplicate records
-- KPI catalogue distinguishing available profile metrics from unavailable transaction/event metrics
-- Insights, data gaps, and a proposed implementation backlog
-- Local CSV/Excel upload for testing
-- JSON summary endpoint and health-check endpoint
+## Important data disclaimer
+The included dataset is fictional/simulated and is for analytical testing only. It is **not actual VELOOP user or business performance**. Reward earnings, wallet movements, withdrawal outcomes, referral conversions, and retention cannot be calculated reliably without verified event and transaction datasets. Do not describe simulated figures as real company statistics.
 
-## Technology Stack
-
-- Python
-- Flask
-- HTML/CSS and dashboard templates
-- CSV-based data processing
-- Gunicorn for deployment
-- Render for hosting
-
-## Project Structure
-
-```text
-VELOOP_Analytics_Portal/
-├── app.py
-├── requirements.txt
-├── render.yaml
-├── Procfile
-├── README.md
-├── run_windows.bat
-├── data/
-│   └── users.csv
-└── static/
-    └── style.css
-```
-
-## Run Locally on Windows
-
-1. Download or clone this repository.
+## Run locally on Windows
+1. Extract this project folder.
 2. Open PowerShell in the project folder.
-3. Create a virtual environment:
+3. Create a virtual environment: `py -m venv .venv`
+4. Activate it: `.venv\\Scripts\\Activate.ps1`
+5. Install dependencies: `pip install -r requirements.txt`
+6. Run: `python app.py`
+7. Open `http://127.0.0.1:5000/register` and create your account.
 
-   ```powershell
-   py -m venv .venv
-   ```
+For local use, the app creates `data/velop_auth.db` automatically. The local fallback secret key is for development only; set a private `SECRET_KEY` environment variable if using the app beyond local testing.
 
-4. Activate it:
+## Deploy on Render with persistent accounts
+**Important:** For persistent user accounts across redeploys/restarts, connect the web service to a PostgreSQL database. The SQLite fallback is suitable for local development and may be lost on an ephemeral hosting filesystem.
 
-   ```powershell
-   .\.venv\Scripts\Activate.ps1
-   ```
+1. Push the updated project files to your GitHub repository.
+2. In Render, create a PostgreSQL database (if your account/plan offers it) and keep it in the same region as the web service.
+3. Open the database details and copy its **Internal Database URL**.
+4. Open the `velop-analytics-portal` web service → **Environment**.
+5. Add `DATABASE_URL` with the PostgreSQL Internal Database URL as its value. Keep it private; never commit it to GitHub.
+6. Confirm `SECRET_KEY` exists as a private environment variable. Use a long, random value; do not share it.
+7. Save changes and redeploy the web service.
+8. Open `/register` on the live URL, create an account, log out, and log back in to verify it works.
 
-5. Install dependencies:
+Build command: `pip install -r requirements.txt`
 
-   ```powershell
-   pip install -r requirements.txt
-   ```
+Start command: `gunicorn app:app --bind 0.0.0.0:$PORT`
 
-6. Start the application:
+Health check path: `/health`
 
-   ```powershell
-   python app.py
-   ```
+## Routes
+- `/register` — create an account
+- `/login` — log in
+- `/logout` — log out (POST action)
+- `/` — overview dashboard (login required)
+- `/users` — user explorer (login required)
+- `/quality` — data quality audit (login required)
+- `/kpis` — KPI catalogue (login required)
+- `/insights` — insights and data gaps (login required)
+- `/backlog` — proposed implementation backlog (login required)
+- `/upload` — upload CSV/Excel for analysis (login required)
+- `/download` — export current dataset (login required)
+- `/api/summary` — summary JSON (login required)
+- `/health` — public service health check
 
-7. Open `http://127.0.0.1:5000` in your browser.
+## Upload persistence limitation
+Uploaded CSV/Excel files are separated by account, but currently stored on the web service's filesystem. On Render's ephemeral filesystem, uploaded datasets can be lost after a restart or redeploy. PostgreSQL persists user accounts; it does **not** automatically persist uploaded files. Durable uploaded-file storage would require a persistent disk or object storage, which is a separate addition.
 
-If PowerShell prevents activation, you can run the environment's Python directly:
-
-```powershell
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe app.py
-```
-
-## Deployment on Render
-
-This application can be deployed as a Render Web Service connected to this GitHub repository.
-
-- **Runtime:** Python 3
-- **Build command:** `pip install -r requirements.txt`
-- **Start command:** `gunicorn app:app --bind 0.0.0.0:$PORT`
-- **Health check path:** `/health`
-
-Use the Render dashboard to connect the repository and deploy the service. After a successful deployment, Render provides a public URL. Add that URL to your internship submission if requested.
-
-## Application Routes
-
-| Route | Purpose |
-|---|---|
-| `/` | Overview dashboard |
-| `/users` | User explorer |
-| `/quality` | Data-quality audit |
-| `/kpis` | KPI catalogue |
-| `/insights` | Insights and data gaps |
-| `/backlog` | Proposed implementation backlog |
-| `/api/summary` | Summary JSON endpoint |
-| `/health` | Health-check endpoint |
-
-## Data Limitations
-
-The bundled CSV is based on the simulated `Users_1000_Clean` worksheet and contains 1,000 rows and 27 columns. Profile data alone cannot reliably calculate reward earnings, wallet movements, withdrawal outcomes, referral conversions, retention, revenue, or other transaction-based performance metrics. Those analyses require verified and appropriately defined event and transaction datasets.
-
-Only upload data that you are authorized to use. Uploaded files may be stored on the local application filesystem; cloud-hosted filesystems can be temporary and may reset after a restart or redeployment. Do not upload passwords, API keys, or confidential information.
-
-## Project Purpose
-
-This is a portfolio and demonstration analytics portal. It is not a production VELOOP system and should not be interpreted as an official source of VELOOP business statistics.
+## Security notes
+- Use HTTPS in production.
+- Keep `SECRET_KEY` and `DATABASE_URL` private.
+- Do not upload confidential company or personal data without permission.
+- This is a portfolio/demo analytics portal, not a production VELOOP system.
